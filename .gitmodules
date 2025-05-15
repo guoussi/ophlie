@@ -1,0 +1,3 @@
+[submodule "quarto"]
+	path = quarto
+	url = https://github.com/guoussi/Quarto_ai_

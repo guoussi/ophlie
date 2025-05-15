@@ -1,0 +1,26 @@
+# Ignore Python cache and environment
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+venv/
+.env
+
+# Ignore editor and OS files
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Ignore logs and temp
+*.log
+*.tmp
+
+# Ignore test artifacts
+.coverage
+htmlcov/
+
+# Ignore config secrets
+secrets.json
+
+# Ignore launch/test scripts (si besoin)
+run_mastermind.py

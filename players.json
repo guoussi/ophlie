@@ -1,0 +1,9 @@
+[
+  {
+    "host": "127.0.0.1",
+    "port_server": 3000,
+    "port_client": 9001,
+    "name": "MastermindAI",
+    "matricules": ["99999", "88888"]
+  }
+]
