@@ -22,16 +22,17 @@ def victoire(plateau):
             return True
     return False
 
-# --- IA Minimax profondeur 2+ ---
 def coups_possibles(plateau):
     return [i for i,v in enumerate(plateau) if v is None]
 
 def pieces_disponibles(plateau, en_attente):
-    deja = set(p for p in plateau if p) | ({en_attente} if en_attente else set())
+    deja = set(p for p in plateau if p)
+    if en_attente:
+        deja.add(en_attente)
     return [p for p in toutes_pieces() if p not in deja]
 
 def simule(plateau, pos, piece):
-    nouv = plateau[:]
+    nouv = list(plateau)
     nouv[pos] = piece
     return nouv
 
@@ -41,36 +42,37 @@ def coup_gagnant(plateau, piece):
             return pos
     return None
 
-def piece_dangereuse(plateau, en_attente, pieces):
+def piece_dangereuse(plateau, pieces):
     # Retourne les pièces qui permettent à l'adversaire de gagner immédiatement
-    dangereuses = []
+    dangereuses = set()
     for p in pieces:
         for pos in coups_possibles(plateau):
             if victoire(simule(plateau, pos, p)):
-                dangereuses.append(p)
+                dangereuses.add(p)
                 break
-    return dangereuses
+    return list(dangereuses)
 
 def eval_board(plateau):
-    # Score simple : +10 pour chaque alignement de 3, +20 pour centre occupé, +5 pour coin
+    # Simple : +1000 si victoire, -1000 si défaite imminente, +10 alignement 3, +5 centre, +2 coin
+    if victoire(plateau):
+        return 1000
     score = 0
     center = [5, 6, 9, 10]
     corners = [0, 3, 12, 15]
-    for ligne in lignes_plateau(plateau):
-        if ligne.count(None) == 1:
-            # 3 pièces alignées partageant un attribut
-            for i in range(4):
-                if ligne[0] and all(p and p[i] == ligne[0][i] for p in ligne if p):
-                    score += 10
     for c in center:
         if plateau[c]:
             score += 5
     for c in corners:
         if plateau[c]:
             score += 2
+    for ligne in lignes_plateau(plateau):
+        attrs = [[p[i] for p in ligne if p] for i in range(4)]
+        for attr in attrs:
+            if len(attr) == 3 and len(set(attr)) == 1:
+                score += 10
     return score
 
-def minimax(plateau, en_attente, profondeur=3, maximizing=True):
+def minimax(plateau, en_attente, profondeur=2, maximizing=True):
     if profondeur == 0 or all(v is not None for v in plateau):
         return eval_board(plateau), None, None
     coups = coups_possibles(plateau)
@@ -79,14 +81,22 @@ def minimax(plateau, en_attente, profondeur=3, maximizing=True):
     best_move = (None, None)
     for pos in coups:
         plat2 = simule(plateau, pos, en_attente)
+        if victoire(plat2):
+            score = 1000 if maximizing else -1000
+            if maximizing and score > best_score:
+                best_score = score
+                best_move = (pos, random.choice(pieces))
+            elif not maximizing and score < best_score:
+                best_score = score
+                best_move = (pos, random.choice(pieces))
+            continue
         for p2 in pieces:
+            score, _, _ = minimax(plat2, p2, profondeur-1, not maximizing)
             if maximizing:
-                score, _, _ = minimax(plat2, p2, profondeur-1, False)
                 if score > best_score:
                     best_score = score
                     best_move = (pos, p2)
             else:
-                score, _, _ = minimax(plat2, p2, profondeur-1, True)
                 if score < best_score:
                     best_score = score
                     best_move = (pos, p2)
@@ -96,21 +106,20 @@ def choose_move(state):
     plateau = state['board']
     en_attente = state.get('piece')
     if en_attente is None:
-        # Premier coup : donner une pièce centrale ou coin si possible
+        # Premier coup : donner une pièce au hasard
         dispo = pieces_disponibles(plateau, None)
         return {'pos': None, 'piece': random.choice(dispo)}
     # Coup gagnant immédiat ?
     pos_gagne = coup_gagnant(plateau, en_attente)
     if pos_gagne is not None:
         dispo = pieces_disponibles(simule(plateau, pos_gagne, en_attente), None)
-        dangereuses = piece_dangereuse(simule(plateau, pos_gagne, en_attente), None, dispo)
+        dangereuses = piece_dangereuse(simule(plateau, pos_gagne, en_attente), dispo)
         safe = [p for p in dispo if p not in dangereuses]
         piece = random.choice(safe) if safe else random.choice(dispo)
         return {'pos': pos_gagne, 'piece': piece}
-    # Sinon, minimax profondeur 3
-    _, pos, piece = minimax(plateau, en_attente, profondeur=3, maximizing=True)
+    # Sinon, minimax profondeur 2
+    _, pos, piece = minimax(plateau, en_attente, profondeur=2, maximizing=True)
     if pos is None or piece is None:
-        # fallback
         coups = coups_possibles(plateau)
         dispo = pieces_disponibles(plateau, en_attente)
         pos = random.choice(coups)
